@@ -4,7 +4,7 @@ import requests, re
 from bs4 import BeautifulSoup
 import openai
 
-openai.api_key = "sk-xxxx..."   # paste your API key here
+openai.api_key = "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"   # paste your API key here
 
 app = FastAPI()
 results = []

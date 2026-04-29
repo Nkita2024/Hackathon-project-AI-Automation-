@@ -16,7 +16,6 @@ results = []
 def scrape_site(url: str) -> dict:
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
-        # ✅ Add user agent override to look like Chrome
         page = browser.new_page(user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
                                            "AppleWebKit/537.36 (KHTML, like Gecko) "
                                            "Chrome/123 Safari/537.36")
@@ -33,7 +32,6 @@ def scrape_site(url: str) -> dict:
     text = " ".join([p.get_text() for p in soup.find_all("p")])
     text = re.sub(r"\s+", " ", text)[:2000]
 
-    # ✅ Fallback if no readable text
     if not text.strip():
         return {
             "website_name": title,
@@ -61,7 +59,9 @@ def ai_enrich(text: str) -> dict:
             "target_customer": "N/A",
             "probable_pain_point": "N/A",
             "outreach_opener": "N/A"
-             prompt = f"""
+        }  # ✅ dictionary closed properly
+
+    prompt = f"""
     From the following company description, extract:
     - core_service
     - target_customer
@@ -79,9 +79,8 @@ def ai_enrich(text: str) -> dict:
             temperature=0
         )
         raw_output = response.choices[0].message["content"]
-        print("AI raw output:", raw_output)  # ✅ Debug log
+        print("AI raw output:", raw_output)
 
-        # Try to parse JSON safely
         return json.loads(raw_output)
     except Exception as e:
         print("AI enrichment error:", e)
@@ -91,7 +90,8 @@ def ai_enrich(text: str) -> dict:
             "probable_pain_point": "N/A",
             "outreach_opener": "N/A"
         }
-        # --- API Endpoints ---
+
+# --- API Endpoints ---
 class URLInput(BaseModel):
     url: str
 
@@ -121,3 +121,4 @@ def get_results():
 @app.get("/")
 def root():
     return FileResponse(os.path.join(os.path.dirname(__file__), "index.html"))
+

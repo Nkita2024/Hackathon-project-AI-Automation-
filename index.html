@@ -21,25 +21,23 @@
 
 <script>
 async function enrich() {
-  const url = document.getElementById("urlInput").value;
-  const res = await fetch("/enrich", {
-    method: "POST",
-    headers: {"Content-Type": "application/json"},
-    body: JSON.stringify({url})
-  });
-  const data = await res.json();
-  document.getElementById("result").innerHTML =
-    `<pre>${JSON.stringify(data, null, 2)}</pre>`;
-  }
+    const url = document.getElementById("urlInput").value;
+    const response = await fetch("/enrich", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url })
+    });
+    const data = await response.json();
+    document.getElementById("results").innerText = JSON.stringify(data, null, 2);
+}
 
-async function showAll() {
-  const res = await fetch("/results");
-  const data = await res.json();
-  document.getElementById("allResults").innerHTML =
-    `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+async function showResults() {
+    const response = await fetch("/results");
+    const data = await response.json();
+    document.getElementById("results").innerText = JSON.stringify(data, null, 2);
 }
 </script>
 </body>
 </html>
 
- 
+

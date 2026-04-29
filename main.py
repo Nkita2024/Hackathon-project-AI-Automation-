@@ -5,12 +5,22 @@ import re, os, json
 from bs4 import BeautifulSoup
 import openai
 from playwright.sync_api import sync_playwright
+from fastapi.middleware.cors import CORSMiddleware
 
 # Load API key securely
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
 app = FastAPI()
 results = []
+
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # or restrict to your frontend domain
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # --- Scraping Helper (Playwright for JS-heavy sites) ---
 def scrape_site(url: str) -> dict:

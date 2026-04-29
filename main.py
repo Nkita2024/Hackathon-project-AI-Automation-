@@ -1,27 +1,48 @@
 from fastapi import FastAPI
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
-import requests, re
+import re, os, json
 from bs4 import BeautifulSoup
 import openai
+from playwright.sync_api import sync_playwright
 
-openai.api_key = "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"   # paste your API key here
+# Load API key securely
+openai.api_key = os.getenv("OPENAI_API_KEY")
 
 app = FastAPI()
 results = []
 
-# --- Scraping Helper ---
+# --- Scraping Helper (Playwright for JS-heavy sites) ---
 def scrape_site(url: str) -> dict:
-    headers = {"User-Agent": "Mozilla/5.0"}
-    r = requests.get(url, headers=headers, timeout=10)
-    soup = BeautifulSoup(r.text, "html.parser")
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        # ✅ Add user agent override to look like Chrome
+        page = browser.new_page(user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                                           "AppleWebKit/537.36 (KHTML, like Gecko) "
+                                           "Chrome/123 Safari/537.36")
+        page.goto(url, timeout=60000)
+        html = page.content()
+        browser.close()
+
+    soup = BeautifulSoup(html, "html.parser")
 
     title = soup.title.string if soup.title else "N/A"
-    emails = list(set(re.findall(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}", r.text)))
-    phones = list(set(re.findall(r"\+?\d[\d\s-]{7,15}", r.text)))
-    addresses = list(set(re.findall(r"\d{1,5}\s\w+\s\w+.*", r.text)))[:1]
-
+    emails = list(set(re.findall(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}", html)))
+    phones = list(set(re.findall(r"\+?\d[\d\s-]{7,15}", html)))
+    addresses = list(set(re.findall(r"\d{1,5}\s\w+\s\w+.*", html)))[:1]
     text = " ".join([p.get_text() for p in soup.find_all("p")])
     text = re.sub(r"\s+", " ", text)[:2000]
+
+    # ✅ Fallback if no readable text
+    if not text.strip():
+        return {
+            "website_name": title,
+            "company_name": title,
+            "address": "N/A",
+            "mobile_number": "N/A",
+            "mail": [],
+            "raw_text": "No readable content found. Try another page."
+        }
 
     return {
         "website_name": title,
@@ -40,9 +61,7 @@ def ai_enrich(text: str) -> dict:
             "target_customer": "N/A",
             "probable_pain_point": "N/A",
             "outreach_opener": "N/A"
-        }
-
-    prompt = f"""
+             prompt = f"""
     From the following company description, extract:
     - core_service
     - target_customer
@@ -53,22 +72,26 @@ def ai_enrich(text: str) -> dict:
     Text: {text}
     """
 
-    response = openai.ChatCompletion.create(
-        model="gpt-4o-mini",
-        messages=[{"role":"user","content":prompt}],
-        temperature=0
-    )
     try:
-        return eval(response.choices[0].message["content"])
-    except:
+        response = openai.ChatCompletion.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0
+        )
+        raw_output = response.choices[0].message["content"]
+        print("AI raw output:", raw_output)  # ✅ Debug log
+
+        # Try to parse JSON safely
+        return json.loads(raw_output)
+    except Exception as e:
+        print("AI enrichment error:", e)
         return {
             "core_service": "N/A",
             "target_customer": "N/A",
             "probable_pain_point": "N/A",
             "outreach_opener": "N/A"
         }
-
-# --- API Endpoints ---
+        # --- API Endpoints ---
 class URLInput(BaseModel):
     url: str
 
@@ -94,3 +117,7 @@ def enrich(input: URLInput):
 def get_results():
     return results
 
+# --- Serve Frontend ---
+@app.get("/")
+def root():
+    return FileResponse(os.path.join(os.path.dirname(__file__), "index.html"))

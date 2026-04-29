@@ -30,7 +30,7 @@ async function enrich() {
   const data = await res.json();
   document.getElementById("result").innerHTML =
     `<pre>${JSON.stringify(data, null, 2)}</pre>`;
-}
+  }
 
 async function showAll() {
   const res = await fetch("/results");
@@ -42,3 +42,4 @@ async function showAll() {
 </body>
 </html>
 
+ 

@@ -6,7 +6,7 @@ __pycache__/
 *.pyd
 *.log
 
-# --- Environment Variables ---
+# -- Environment Variables --
 .env
 .env.local
 .env.development
